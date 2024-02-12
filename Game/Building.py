@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 class Building:
-    def __init__(self, name, level,improvement_requirements=None,village=None,*args,**kwargs):
+    def __init__(self, name, level,village=None,*args,**kwargs):
         self.name = name
         self.level = level
         self.max_level = False
@@ -11,10 +11,7 @@ class Building:
             self.next_reward = self.rewards[self.level]
         else:
             self.max_level = True
-        #We need to add building constraints to the requirements
-        if improvement_requirements == None:
-            improvement_requirements = self.read_requirements(self.level)
-        self.requirements = improvement_requirements
+        self.requirements = self.read_requirements()
         self.building_requirements = self._check_building_requirements()
         if village != None:
             self.village = village
@@ -27,19 +24,15 @@ class Building:
         if self.name in table.columns and not table[self.name].empty:
                 return table[self.name].dropna().to_list()
         return []
-    def read_requirements(self,level=1):
+
+    def read_requirements(self):
         script_dir = os.path.dirname(__file__)
         file_path = os.path.join(script_dir, f"Buildings/building_requirements/{self.name}.csv")
         table = pd.read_csv(file_path)
-        try:
-            requirements = table[table['level'] == level+1].iloc[0].to_dict()
-            requirements["wood"] = float(requirements["wood"])
-            requirements["iron"] = float(requirements["iron"])
-            requirements["clay"] = float(requirements["clay"])
-        except:
-            self.max_level = True
-            requirements = None
-        return requirements
+        table["wood"] = table["wood"].astype(float)
+        table["iron"] = table["iron"].astype(float)
+        table["clay"] = table["clay"].astype(float)
+        return table
 
     def _check_building_requirements(self):
         buildings_with_requirements = {
@@ -56,10 +49,18 @@ class Building:
         return {}
 
     #On improve we have to update the next_reward and max.
-    def upgrade(self):
+    def upgrade(self,current_level_requirements=None):
         new_reward = self.next_reward
         if self.max_level:
-            return False
+            print("ERROR:", self.name, self.level)
+            return False, 0
+        if not current_level_requirements:
+            current_level_requirements = self.requirements[self.requirements['level'] == self.level+1].iloc[0].to_dict()
+        #async with self.lock:  # Ensure safe access to the shared resource
+        self.village.loot["wood"] -= current_level_requirements["wood"]
+        self.village.loot["iron"] -= current_level_requirements["iron"]
+        self.village.loot["clay"] -= current_level_requirements["clay"]
+        assert (self.village.loot["wood"]>=0 and self.village.loot["clay"]>=0 and self.village.loot["iron"]>=0),"not enough resources"
         self.level +=1
         if len(self.rewards)>self.level:
             self.next_reward = self.rewards[self.level]

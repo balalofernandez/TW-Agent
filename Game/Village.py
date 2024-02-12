@@ -9,8 +9,8 @@ from Game.Buildings import create_building
 class Village():
     all_troops = ['spear','swordsman','axeman','archer','scout','light','mounted','heavy','ram','catapult','paladin','nobleman','militia']
     excluded_buildings = ['statue',]
-    all_buildings = ['headquarters','first_church','rally_point','farm', 'warehouse','hiding_place',
-                      'timber', 'clay', 'iron', 'watchtower', 'wall','market','smithy', 'academy',
+    all_buildings = ['headquarters','timber', 'clay', 'iron','first_church','rally_point','farm', 'warehouse','hiding_place',
+                       'watchtower', 'wall','market','smithy', 'academy',
                       'church', 'workshop', 'stable', 'barracks']
     flags = {"wood_upgrade": False,
               "iron_upgrade": False,
@@ -34,6 +34,7 @@ class Village():
         'hiding_place': 10,
         'wall': 20
     }
+    lock = asyncio.Lock()
 
     def __init__(self, buildings=[],name=''):
         self.name = name
@@ -51,6 +52,8 @@ class Village():
         self.storage_capacity = 1000
         self.max_farm = 240
         self.current_farm = 12
+        self.point_table = self.read_points()
+
         #self.points = self.compute_points() #This may be a good way to encourage the agent to improve
 
     async def run(self,speed):
@@ -62,6 +65,7 @@ class Village():
 
     def perform_action(self,action):
         print(f"Resources of {self.name}: {self.loot}")
+        print(f"Production of {self.name}: {self.production}")
         if action!="idle":
             return self.upgrade_building(action)
         return True,0.
@@ -87,15 +91,19 @@ class Village():
             if self.max_levels[building_name] != self.buildings[building_name].level:
                 return False
         return True
-    def compute_points(self):
+
+    @staticmethod
+    def read_points():
         script_dir = os.path.dirname(__file__)
         file_path = os.path.join(script_dir, f"Points/points.csv")
-        table = pd.read_csv(file_path)
+        table = pd.read_csv(file_path).astype(float)
+        return table
+    def compute_points(self):
         total_points = 0
         for building in self.buildings.values():
-            if building.name in table.columns and not table[building.name].empty:
+            if building.name in self.point_table.columns and not self.point_table[building.name].empty:
                 #print(f"{building.name},level {building.level}:", table[building.name][building.level-1].sum())
-                total_points += table[building.name][:building.level].sum()
+                total_points += self.point_table[building.name][:building.level].sum()
         return total_points
 
     def upgrade_building(self,building_name):
@@ -111,11 +119,10 @@ class Village():
         if correct:
             self.buildings[building_name] = building
             return correct,reward
-        return False,-1
+        return False,-1.
 
     def get_available_upgrades(self):
         """
-
         :return:
             - available_upgrades contains a mask [0,1] with all the buildings that can be upgraded
             - upgrade_rewards is a dictionary with the rewards for each upgradeable building
@@ -150,11 +157,12 @@ class Village():
                         return available
                 else:
                     return available
-        if self.loot["wood"]<building.requirements["wood"]:
+        next_lvl_requirements = building.requirements[building.requirements['level'] == building.level+1].iloc[0].to_dict()
+        if self.loot["wood"]<next_lvl_requirements["wood"]:
             return available
-        if self.loot["iron"]<building.requirements["iron"]:
+        if self.loot["iron"]<next_lvl_requirements["iron"]:
             return available
-        if self.loot["clay"]<building.requirements["clay"]:
+        if self.loot["clay"]<next_lvl_requirements["clay"]:
             return available
         return (True,building.next_reward)
 
@@ -162,11 +170,12 @@ class Village():
     def _building_available_upgrade(self,building):
         #Check loot requirements
         available = (False,0)
-        if self.loot["wood"]<building.requirements["wood"]:
+        next_lvl_requirements = building.requirements[building.requirements['level'] == building.level+1].iloc[0].to_dict()
+        if self.loot["wood"]<next_lvl_requirements["wood"]:
             return available
-        if self.loot["iron"]<building.requirements["iron"]:
+        if self.loot["iron"]<next_lvl_requirements["iron"]:
             return available
-        if self.loot["clay"]<building.requirements["clay"]:
+        if self.loot["clay"]<next_lvl_requirements["clay"]:
             return available
         return (True,building.next_reward)
 
@@ -178,21 +187,24 @@ class Village():
             time_span_one_ore = 1/second_production*speed
             await asyncio.sleep(time_span_one_ore)
             if not(self.flags["wood_upgrade"] or self.storage_capacity<=self.loot["wood"]):
-                self.loot["wood"] += 1
+                async with self.lock:  # Ensure safe access to the shared resource
+                    self.loot["wood"] += 1
     async def _produce_clay(self,speed):
         while True:
             second_production = self.production["clay"]/(60*60)
             time_span_one_ore = 1/second_production*speed
             await asyncio.sleep(time_span_one_ore)
             if not(self.flags["clay_upgrade"] or self.storage_capacity<=self.loot["clay"]):
-                self.loot["clay"] += 1
+                async with self.lock:  # Ensure safe access to the shared resource
+                    self.loot["clay"] += 1
     async def _produce_iron(self,speed):
         while True:
             second_production = self.production["iron"]/(60*60)
             time_span_one_ore = 1/second_production*speed
             await asyncio.sleep(time_span_one_ore)
             if not(self.flags["iron_upgrade"] or self.storage_capacity<=self.loot["iron"]):
-                self.loot["iron"] += 1
+                async with self.lock:  # Ensure safe access to the shared resource
+                    self.loot["iron"] += 1
     #METHODS:
         #construct building
         #available constructions

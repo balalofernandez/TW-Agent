@@ -1,11 +1,12 @@
 import asyncio
 
+import ray
 from ray.rllib.examples.models.action_mask_model import TorchActionMaskModel
 from ray.rllib.models import ModelCatalog
-
 from Game import *
 from ray.rllib.algorithms.ppo import PPOConfig
 from Game.Agent import MapEnv,ActionMaskModel
+import torch
 
 if __name__ == '__main__':
     new_village = Village(name="village1")
@@ -36,25 +37,36 @@ if __name__ == '__main__':
     map = Map(agent,[new_village], [new_village2])
     #Let's run the game
     #asyncio.run(map.run_game())
+    ray.init(num_gpus=1,num_cpus=10)
     env_config = {
-        'action_freq': 2, 'max_steps': 2000, 'debug': True,'map':map
+        'agent_wait': 1.2, 'max_steps': 1500, 'debug': True,'map':map,'speed':0.0005,
     }
-    ModelCatalog.register_custom_model("action_mask_model", ActionMaskModel)
+    ModelCatalog.register_custom_model("action_mask_model", TorchActionMaskModel)
     config = (  # 1. Configure the algorithm,
         PPOConfig()
-        .debugging(log_level="ERROR")
+        .debugging(log_level="DEBUG")
         .environment(MapEnv,env_config=env_config)
-        .rollouts(num_rollout_workers=1)  # 2
+        .rollouts(num_rollout_workers=8)  # 2
         .framework("torch")
         .training(model={
                 "custom_model": "action_mask_model",}, gamma=0.9, lr=0.01, kl_coeff=0.3,
-                  train_batch_size=128)
+                  train_batch_size=512)
         .resources(num_gpus=1)
-        .evaluation(evaluation_num_workers=1)
-        .framework(framework="torch")
+        .framework("torch")
+        .evaluation(evaluation_num_workers=1,evaluation_interval=100)
     )
     algo = config.build()
     for i in range(2000):
-        print(f"Episode {i}")
-        results = algo.train()
-        print(results)
+      results = algo.train()
+      print("RESULTS",results)
+      if i % 200 == 0:
+          evaluation_result = algo.evaluate()
+          with open('output.txt', 'a') as file:
+              file.write(f"{str(evaluation_result)}\n")
+
+    save_result = algo.save()
+    path_to_checkpoint = save_result.checkpoint.path
+    print(
+        "An Algorithm checkpoint has been created inside directory: "
+        f"'{path_to_checkpoint}'."
+    )

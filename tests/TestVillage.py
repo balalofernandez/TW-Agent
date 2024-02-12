@@ -1,7 +1,7 @@
 import unittest
 from Game import Village
 from Game.Buildings import *
-
+import torch
 
 class TestVillage(unittest.TestCase):
     def setUp(self):
@@ -34,14 +34,17 @@ class TestVillage(unittest.TestCase):
         available_upgrades = list(rewards)
         print(available_upgrades)
         previous_level = 0
-        if available_upgrades[0] in self.new_village.buildings:
-            previous_level = self.new_village.buildings[available_upgrades[0]].level
-        if self.new_village.upgrade_building(available_upgrades[0]):
-            self.assertGreater(self.new_village.buildings[available_upgrades[0]].level, previous_level)
-        self.assertEqual(self.new_village.upgrade_building("first_church"), False)
+        if "clay" in self.new_village.buildings:
+            previous_level = self.new_village.buildings["clay"].level
+        if self.new_village.upgrade_building("clay"):
+            self.assertGreater(self.new_village.buildings["clay"].level, previous_level)
+        self.assertEqual(self.new_village.upgrade_building("first_church")[0], False)
 
     def test_not_maxed_village(self):
         self.assertEqual(self.new_village.check_max_village(),False)
+
+    def test_cuda(self):
+        self.assertTrue(torch.cuda.is_available())
 
 
 
