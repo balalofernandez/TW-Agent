@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #asyncio.run(map.run_game())
     ray.init(num_gpus=1,num_cpus=10)
     env_config = {
-        'agent_wait': 1.2, 'max_steps': 1500, 'debug': True,'map':map,'speed':0.0005,
+        'agent_wait': .2, 'max_steps': 3000, 'debug': True,'map':map,'speed':0.0001,
     }
     ModelCatalog.register_custom_model("action_mask_model", TorchActionMaskModel)
     config = (  # 1. Configure the algorithm,
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         .evaluation(evaluation_num_workers=1,evaluation_interval=100)
     )
     algo = config.build()
-    for i in range(2000):
+    for i in range(1000):
       results = algo.train()
       print("RESULTS",results)
       if i % 200 == 0:

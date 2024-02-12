@@ -88,7 +88,6 @@ class MapEnv(gym.Env):
         self.current_step = 0
         self.agent = Agent()
         self.new_village = self._create_starting_village()
-        print("STARTING")
         #Running
         self.start_game()
         # self.map = Map(self.agent, [new_village])
@@ -119,7 +118,6 @@ class MapEnv(gym.Env):
         self.action_record[action]+=1
         print(f"ACTION {self.current_step}: {action_name}")
         status, reward = self.new_village.perform_action(action_name)  # self.valid_actions[action]
-        print("Status",status,"Reward",reward)
         asyncio.run(asyncio.sleep(self.agent_wait))
         # 2. Update the Observation and 3. Calculate the Reward
         observation,future_rewards = self._generate_observations_and_rewards()
@@ -132,7 +130,7 @@ class MapEnv(gym.Env):
             f"{self.new_village.all_buildings[4]} and {self.new_village.all_buildings[5]} can be updated"
         if terminated or truncated:
             np.save(f"./stats/Action_record_{self.worker_id[:4]}",self.action_record)
-        return observation, reward * 0.3, terminated, truncated, {}
+        return observation, reward, terminated, truncated, {}
 
     # def close(self):
     def start_game(self):

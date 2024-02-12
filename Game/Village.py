@@ -57,18 +57,18 @@ class Village():
         #self.points = self.compute_points() #This may be a good way to encourage the agent to improve
 
     async def run(self,speed):
-        print("Starting Village",self.name)
+        #print("Starting Village",self.name)
         task1 = asyncio.create_task(self._produce_wood(speed),name="wood")
         task2 = asyncio.create_task(self._produce_clay(speed),name="clay")
         task3 = asyncio.create_task(self._produce_iron(speed),name="iron")
         await asyncio.gather(task1, task2, task3)
 
     def perform_action(self,action):
-        print(f"Resources of {self.name}: {self.loot}")
-        print(f"Production of {self.name}: {self.production}")
+        #print(f"Resources of {self.name}: {self.loot}")
+        #print(f"Production of {self.name}: {self.production}")
         if action!="idle":
             return self.upgrade_building(action)
-        return True,0.
+        return True,-1
 
     def set_buildings(self,buildings):
         self.buildings = {}
