@@ -1,0 +1,6 @@
+asyncio~=3.4.3
+ray~=2.9.2
+gymnasium~=0.28.1
+torch~=2.2.0+cu121
+numpy~=1.24.4
+pandas~=2.0.3
