@@ -1,8 +1,5 @@
 import threading
-import uuid
-from pathlib import Path
-from typing import List
-
+import os
 import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 import asyncio
@@ -129,7 +126,11 @@ class MapEnv(gym.Env):
         assert (observation["action_mask"][4]==0 and observation["action_mask"][5]==0),\
             f"{self.new_village.all_buildings[4]} and {self.new_village.all_buildings[5]} can be updated"
         if terminated or truncated:
-            np.save(f"./stats/Action_record_{self.worker_id[:4]}",self.action_record)
+            if not os.path.exists(f"./stats/{self.worker_id[:5]}"):
+                os.makedirs(f"./stats/{self.worker_id[:5]}")
+            np.save(f"./stats/{self.worker_id[:5]}/Action_record",self.action_record)
+            np.save(f"./stats/{self.worker_id[:5]}/Point_at_time",self.point_at_time)
+            np.save(f"./stats/{self.worker_id[:5]}/Past_actions",self.past_actions)
         return observation, reward, terminated, truncated, {}
 
     # def close(self):
